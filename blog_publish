@@ -1,0 +1,31 @@
+#!/bin/sh
+
+cd /home/eoin/gemini/gemlog || exit
+blog_gemindexmake
+./gemfeed.py -b gemini://spool-five.com/gemlog/ -t "Spool-Five Glog"
+
+
+[ -z "$1" ] && exit
+blog_crosspost "$1"
+
+echo "Commit Message:"
+read msg
+# updates microlog
+cd /home/eoin/gemini/ || exit
+sed -i "9i## $(date +'%a %d %b %Y %H:%M %Z')\n$msg\n" micro.gmi
+
+read -r -p "Upload posts? [Y/n] " input
+
+case $input in
+    [yY][eE][sS]|[yY])
+ echo "Pushing Blogs"
+ blog_push
+ ;;
+    [nN][oO]|[nN])
+ echo "Bye!"
+       ;;
+    *)
+ echo "Invalid input..."
+ exit 1
+ ;;
+esac

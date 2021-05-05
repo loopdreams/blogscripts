@@ -1,0 +1,9 @@
+#!/bin/sh
+
+sort -R ~/gemini/quotes.txt | head -n1 >> ~/gemini/index.gmi &&
+
+sed -i '/^>/d' ~/gemini/index.gmi &&
+
+sed -i '$s/^/>/' ~/gemini/index.gmi &&
+
+rsync -aP ~/gemini/index.gmi servercron:/home/gemini/gemini/content/index.gmi

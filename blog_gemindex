@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+# Bash 4.4+ script to create a gemtext index for gemini documents
+#
+# Copyright 2021 Filip H.F. "FiXato" Slagter <https://contact.fixato.org>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+PRINT_YEAR_HEADERS=true
+PRINT_MONTH_HEADERS=true
+PRINT_DAY_HEADERS=false
+USE_HEADER_AS_LINK_TITLE=true # Extract the link title from the document's first line, which should be the gemtext header. If not set to 'true', try to convert the filename to a legible title instead
+PREFIX_LINK_TITLE_WITH_DATE=true # Prefix link titles with their extracted post dates when set to 'true', so it follows the Gemini Subscription specification
+DATE_FROM_FILE_METHOD=guess_date_from_filename
+#DATE_FROM_FILE_METHOD=extract_date_from_byline
+REVERSE_CHRONOLOGICAL_ORDER=true
+
+# Helper function to get the Unix epoch timestamp for a file's last-mod date, or formatted date string
+date_reference() {
+    if [ -f "$1" ]; then # if the passed argument is a file that exists, use it as a reference (i.e. last-modified)
+        date -r "$1" +"%s"
+    else # Else expect the passed argument to be a formatted date (or date-time) string
+        date -d "$1" +"%s"
+    fi
+}
+
+# Guess (rather naively) the date from the filename; look for a yyyy-mm-dd date (limited to the 20th and 21st century), that has a somewhat valid-looking month and day
+guess_date_from_filename() {
+    printf '%s' "$1" | grep --only-matching --extended '(19|20)[0-9]{2}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[0-1])'
+}
+
+extract_date_from_byline() {
+    published_match_string='First published on '
+    revised_match_string='Last revised on '
+    match_string="$(grep --only-matching --extended "^${revised_match_string}(.+)" "$1" | head -n1)"
+    if (( $? == 0 )); then
+        formatted_ios8601 "${match_string#${revised_match_string}}"
+        return
+    fi
+    match_string="$(grep --only-matching --extended "^${published_match_string}(.+)" "$1" | head -n1)"
+    if (( $? == 0 )); then
+        formatted_ios8601 "${match_string#${published_match_string}}"
+        return
+    fi
+}
+
+formatted_gemini_date() {
+    local input_date="$(date_reference "$1")"
+    date -d "@$input_date" +"%Y-%m-%d"
+}
+
+formatted_ios8601() {
+    local input_date="$(date_reference "$1")"
+    date -d "@$input_date" --iso-8601=minutes
+}
+
+# Format a year header (e.g.: ## Logs for 2021) for the given date
+year_header() {
+    local input_date="$(date_reference "$1")"
+    echo "## $(date -d "@$input_date" +"%Y")"
+}
+
+# Format a month header (e.g.: ### Logs for December) for the given date
+month_header() {
+    local input_date="$(date_reference "$1")"
+    echo "### $(date -d "@$input_date" +"%B")"
+}
+
+# Format a day header (e.g.: #### Logs for Monday 04) for the given date
+day_header() {
+    local input_date="$(date_reference "$1")"
+    echo "#### Logs for $(date -d "@$input_date" +"%A %d")"
+}
+
+date_from_file() {
+    # Optionally do some sanitation or ensuring the specified method exists
+  $DATE_FROM_FILE_METHOD "$1"
+}
+
+get_link_title_from_gemtext_file() {
+    local filename="$1"
+    local title=""
+    if [ "$USE_HEADER_AS_LINK_TITLE" = 'true' ]; then
+        title="$(head -n1 "$filename")" # Get the first line from the (GemText) file, which (per spec) should be the document's title
+        title="${title###}" # Strip the leading '#' header character
+        title="${title## }" # Strip the leading space that might be left behind if there was a space between the header character and the header text.
+        if [ "$PREFIX_LINK_TITLE_WITH_DATE" = 'true' ]; then
+            formatted_post_date="$(formatted_gemini_date "$post_date")"
+            title="$formatted_post_date - $title" # Add the post date (yyyy-mm-dd) before the title, so it follows the Gemini Subscription spec (https://gemini.circumlunar.space/docs/companion/subscription.gmi)
+        fi
+    else # Fallback method for translating the filename into a title
+        title="${filename##*/}" # Get the basename; i.e. filename with the directories stripped. Note that this will not work on Windows systems where a backslash is the path separator. In that case use the basename command instead: title="$(basename "$filename")"
+        title="${title%%.*}" # Strip off any extensions
+        title="${title//${post_date}/}" # Strip the post date from the filename
+        title="${title//--/-}" # condense separator hyphens that might result from stripping dates from prefix-yyyy-mm-dd-title formatted filenames
+        title="${title//-/ }" # Replace hypens with spaces
+        title="${title//_/ }" # Replace underscores with spaces
+        title="${title% }" # strip potential trailing space
+    fi
+    echo "$title"
+}
+
+typeset -a files_without_date_in_filename # Create an array for the files for which no date could be found in their filepaths
+typeset -A files_by_date_in_filename # Create an array for the filepaths, using the post dates in the filepath as array keys
+while [ "$#" -ne 0 ]; do # Loop through the script arguments till there are no arguments left
+    [[ $1 == *$'\n'* || $1 == *$'\r'* ]] && echo $'You have a newline or carriage return in your filename:\n' "$1" $'\nGemText does not support this.' >&2 && exit 1
+    post_date="$(date_from_file "$1")"
+    if [ "$post_date" = '' ]; then # if we can't find a date in the filename, add it to a separate array
+        files_without_date_in_filename+=("$1")
+    else
+        files_by_date_in_filename["$post_date $1"]="$1" # Add filename to the arrray, using the date as key (suffixed by the filename to ensure the keys are unique); use a hyphen if no date could be found in the filepath
+    fi
+    shift # Remove the first argument
+done
+
+order_argument=""
+[ "$REVERSE_CHRONOLOGICAL_ORDER" = 'true' ] && order_argument=" --reverse"
+# Print a separate index for files that don't have a date in their filepaths:
+if [ "${#files_without_date_in_filename[*]}" -ne 0 ]; then
+    mapfile -d '' sorted_files_without_date_in_filename < <(printf '%s\0' "${files_without_date_in_filename[@]}" | sort -z${order_argument}) # sort the array keys into a separate array for alphabetical traversal
+
+    echo "## ${#sorted_files_without_date_in_filename[*]} Timeless entries:" # Print a header for this section
+    for filename in "${sorted_files_without_date_in_filename[@]}"; do
+        echo "=> $filename $(get_link_title_from_gemtext_file "$filename")"
+    done
+    echo ""
+fi
+
+if [ "${#files_by_date_in_filename[*]}" -ne 0 ]; then
+    mapfile -d '' sorted_files_by_date_in_filename < <(printf '%s\0' "${!files_by_date_in_filename[@]}" | sort -z${order_argument}) # sort the array keys into a separate array for alphabetical traversal
+    for key in "${sorted_files_by_date_in_filename[@]}"; do
+        filename="${files_by_date_in_filename[$key]}"
+        post_date="$(date_from_file "$filename")"
+        [ "$post_date" = '' ] && post_date="$filename"
+
+        if [ "$PRINT_YEAR_HEADERS" = 'true' ]; then
+            year_header="$(year_header "$post_date")"
+            [ "$year_header" != "$last_year_header" ] && echo "$year_header" # If this is the first entry for this year, print the year header
+            last_year_header="$year_header"
+        fi
+
+        if [ "$PRINT_MONTH_HEADERS" = 'true' ]; then
+            month_header="$(month_header "$post_date")"
+            [ "$month_header" != "$last_month_header" ] && echo "$month_header" # If this is the first entry for this month, print the month header
+            last_month_header="$month_header"
+        fi
+
+        if [ "$PRINT_DAY_HEADERS" = 'true' ]; then
+            day_header="$(day_header "$post_date")"
+            [ "$day_header" != "$last_day_header" ] && echo "$day_header" # If this is the first entry for this date, print the day header
+            last_day_header="$day_header"
+        fi
+
+        title="$(get_link_title_from_gemtext_file "$filename")"
+        echo "=> $filename $title" # Output the actual link
+    done
+fi
