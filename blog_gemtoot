@@ -2,6 +2,6 @@
 #ssh hexonline 'echo -e "##$(date)\n$1\n\n" >> ~/gemini/micro.gmi'
 
 [ -z "$1" ] && exit
-sed -i "9i## $(date +'%a %d %b %Y %H:%M %Z')\n$1\n" /home/eoin/gemini/micro.gmi &&
+sed -i "9i## $(date +'%a %d %b %Y %H:%M %Z')\n$1\n" /home/eoin/blog/gemini/micro.gmi &&
 
-rsync -aP -e'ssh -p 68' ~/gemini/micro.gmi root@spool-five.com:/home/gemini/gemini/content/micro.gmi
+rsync -aP -e'ssh -p 68' ~/blog/gemini/micro.gmi root@spool-five.com:/home/gemini/gemini/content/micro.gmi

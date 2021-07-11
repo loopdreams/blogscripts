@@ -1,9 +1,11 @@
 #!/bin/sh
 
-sort -R ~/gemini/quotes.txt | head -n1 >> ~/gemini/index.gmi &&
+DIR=/home/eoin/blog/gemini
 
-sed -i '/^>/d' ~/gemini/index.gmi &&
+sort -R $DIR/quotes.txt | head -n1 >> $DIR/index.gmi &&
 
-sed -i '$s/^/>/' ~/gemini/index.gmi &&
+sed -i '/^>/d' $DIR/index.gmi &&
 
-rsync -aP ~/gemini/index.gmi servercron:/home/gemini/gemini/content/index.gmi
+sed -i '$s/^/>/' $DIR/index.gmi &&
+
+rsync -aP $DIR/index.gmi servercron:/home/gemini/gemini/content/index.gmi

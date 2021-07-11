@@ -1,4 +1,6 @@
 #!/bin/sh
 
-rsync -av -e'ssh -p 3322' --delete --exclude /feed/ --exclude /.certificates/ --exclude /.git/ --exclude /.gitignore ~/gemini/ root@spool-five.com:/home/gemini/gemini/content/
-rsync -av -e'ssh -p 3322' --delete ~/spoolfive/ root@spool-five.com:/var/www/spoolfive
+rsync -av -e'ssh -p 3322' --delete --exclude /feed/ --exclude /.certificates/ --exclude /.git/ --exclude /.gitignore ~/blog/gemini/ root@spool-five.com:/home/gemini/gemini/content/
+rsync -av -e'ssh -p 3322' --delete ~/blog/spoolfive/ root@spool-five.com:/var/www/spoolfive
+# Call Antenna gemini://warmedal.se/~antenna/
+gemcall -u gemini://warmedal.se/~antenna/submit?gemini://spool-five.com/gemlog/atom.xml
