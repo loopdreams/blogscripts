@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+DIR="/home/eoin/blog/gopher"
+DIRFILE="$DIR/README.txt"
+
+sed -i '/^INDEX/,${/^INDEX/!d}' $DIRFILE
+cd $DIR && tree -L 1 */ >> $DIRFILE
