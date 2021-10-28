@@ -4,7 +4,7 @@ DIR=/home/eoin/blog/gemini
 
 cd $DIR/gemlog || exit
 blog_gemindexmake
-./gemfeed.py -b gemini://spool-five.com/gemlog/ -t "Spool-Five Glog"
+./gemfeed.py -b gemini://spool-five.com/gemlog/ -t "Spool-Five"
 
 [ -z "$1" ] && exit
 blog_crosspost "$1"
