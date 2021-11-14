@@ -7,5 +7,3 @@ sort -R $DIR/quotes.txt | head -n1 >> $DIR/index.gmi &&
 sed -i '/^>/d' $DIR/index.gmi &&
 
 sed -i '$s/^/>/' $DIR/index.gmi &&
-
-rsync -aP $DIR/index.gmi servercron:/home/gemini/gemini/content/index.gmi
