@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# Call Antenna gemini://warmedal.se/~antenna/
+gemcall -u gemini://warmedal.se/~antenna/submit?gemini://spool-five.com/gemlog/atom.xml

@@ -1,32 +1,59 @@
 #!/bin/sh
 
 DIR=/home/eoin/blog/gemini
+dest=/home/eoin/blog/spoolfive/markdown
+head=/home/eoin/blog/spoolfive/markdown/header.txt
 
+## Gemlog - Update Gemlog index and make atom feed
 cd $DIR/gemlog || exit
 blog_gemindexmake
 ./gemfeed.py -b gemini://spool-five.com/gemlog/ -t "Spool-Five"
 
 [ -z "$1" ] && exit
-blog_crosspost "$1"
+# blog_crosspost "$1"
 
-echo "Commit Message:"
-read msg
-# updates microlog
-cd $DIR || exit
-sed -i "9i## $(date +'%a %d %b %Y %H:%M %Z')\n$msg\n" micro.gmi
+## Converting to markdown
+file=$1
+title=$(head -n 1 "$file" | sed 's/\#\ //')
+dt=$(date +%Y-%m-%d)
 
-read -r -p "Upload posts? [Y/n] " input
+# Do the stuff. '5d' removes First Gemini Heading.
+# Awk section from gmi2mkd script
+cat $head "$file" |
+    sed -e "s/\$title/$title/" \
+        -e "s/\$date/$dt/" \
+        -e "5d" \
+        -e "s/index\.gmi/\.\.\/archive\.html/" \
+        -e "s/Gemlog/All\ Posts/" |
+    awk '{ if ($1 == "=>") {
+        URL=$2;
+        $1="";
+        $2="";
+        sub("  ", "");
+        print "[" $0 "](" URL ")\n";
+    }
+    else {
+        print;
+    }
+}' > "$dest/$file.md"
+
+#Change file extension
+for file in "$dest"/*.gmi.md ; do mv "$file" "$(echo "$file" | sed 's/\.gmi//')" ; done
+
+# Run Blop (compile html from markdown)
+read -r -p "Recompile Weblog? [Y/n] " input
 
 case $input in
-    [yY][eE][sS]|[yY])
- echo "Pushing Blogs"
- blog_push
- ;;
-    [nN][oO]|[nN])
- echo "Bye!"
-       ;;
+    [yY])
+        echo "Running Blop..."
+        cd /home/eoin/blog/spoolfive/ || exit
+        blog_blop
+        ;;
+    [nN])
+        echo "No"
+        ;;
     *)
- echo "Invalid input..."
- exit 1
- ;;
+        echo "Invalid input..."
+        exit 1
+        ;;
 esac
