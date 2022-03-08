@@ -3,7 +3,5 @@
 DIR=/home/eoin/blog/gemini
 
 sort -R $DIR/quotes.txt | head -n1 >> $DIR/index.gmi &&
-
 sed -i '/^>/d' $DIR/index.gmi &&
-
-sed -i '$s/^/>/' $DIR/index.gmi &&
+sed -i '$s/^/>/' $DIR/index.gmi
