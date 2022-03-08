@@ -7,7 +7,7 @@ head=/home/eoin/blog/spoolfive/markdown/header.txt
 ## Gemlog - Update Gemlog index and make atom feed
 cd $DIR/gemlog || exit
 blog_gemindexmake
-./gemfeed.py -b gemini://spool-five.com/gemlog/ -t "Spool-Five"
+gemfeed.py -b gemini://spool-five.com/gemlog/ -t "Spool-Five"
 
 [ -z "$1" ] && exit
 # blog_crosspost "$1"
